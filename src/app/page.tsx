@@ -1,69 +1,132 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { UserButton } from "@clerk/nextjs";
+import { FileText, Plus } from "lucide-react";
+import Editor from "@/components/Editor";
+
+interface Document {
+  id: string;
+  title: string;
+  content: string;
+}
 
 export default function Home() {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [activeDoc, setActiveDoc] = useState<Document | null>(null);
+
+  useEffect(() => {
+    const fetchDocs = async () => {
+      const res = await fetch("/api/documents");
+      const data = await res.json();
+      setDocuments(data);
+      if (data.length > 0) setActiveDoc(data[0]);
+    };
+    fetchDocs();
+  }, []);
+
+  const createDocument = async () => {
+    const res = await fetch("/api/documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Untitled Document" }),
+    });
+    const newDoc = await res.json();
+    setDocuments([newDoc, ...documents]);
+    setActiveDoc(newDoc);
+  };
+
+  useEffect(() => {
+    if (!activeDoc) return;
+    const timer = setTimeout(() => {
+      fetch(`/api/documents/${activeDoc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: activeDoc.content }),
+      }).then(() => {
+        setDocuments(prev =>
+          prev.map(d => (d.id === activeDoc.id ? { ...d, content: activeDoc.content } : d))
+        );
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeDoc?.id, activeDoc?.content]);
+
+  const selectDocument = async (doc: Document) => {
+    const res = await fetch(`/api/documents/${doc.id}`);
+    if (res.ok) setActiveDoc(await res.json());
+  };
+
+  const updateTitle = (title: string) => {
+    if (!activeDoc) return;
+    const updatedDoc = { ...activeDoc, title };
+    setActiveDoc(updatedDoc);
+    setDocuments(documents.map(d => d.id === updatedDoc.id ? updatedDoc : d));
+    fetch(`/api/documents/${activeDoc.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
+      <aside className="w-64 border-r border-zinc-800 p-4 flex flex-col justify-between shrink-0">
+        <div>
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-xl font-bold text-zinc-50">
+              Synapse<span className="text-blue-500">.</span>
+            </h1>
+            <UserButton />
+          </div>
+          
+          <button 
+            onClick={createDocument}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+            <Plus size={16} /> New Page
+          </button>
+
+          <div className="mt-6 space-y-1 max-h-[70vh] overflow-y-auto">
+            {documents.map((doc) => (
+              <button
+                key={doc.id}
+                onClick={() => selectDocument(doc)}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors ${
+                  activeDoc?.id === doc.id 
+                    ? "bg-zinc-800 text-zinc-100" 
+                    : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                }`}
+              >
+                <FileText size={14} />
+                {doc.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      {activeDoc ? (
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className="border-b border-zinc-800 p-4 shrink-0">
+            <input 
+              type="text" 
+              value={activeDoc.title}
+              onChange={(e) => updateTitle(e.target.value)}
+              className="bg-transparent text-3xl font-bold text-zinc-200 outline-none placeholder:text-zinc-700 w-full"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          </div>
+          <Editor
+            key={activeDoc.id}
+            content={activeDoc.content}
+            onChange={(content) => setActiveDoc({ ...activeDoc, content })}
+          />
+        </main>
+      ) : (
+        <main className="flex-1 flex items-center justify-center text-zinc-600">
+          Select or create a document to get started.
+        </main>
+      )}
     </div>
   );
 }
