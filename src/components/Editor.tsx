@@ -11,9 +11,10 @@ import { Sparkles } from "lucide-react";
 interface EditorProps {
   content: string;
   onChange: (content: string) => void;
+  apiKey: string;
 }
 
-export default function Editor({ content, onChange }: EditorProps) {
+export default function Editor({ content, onChange, apiKey }: EditorProps) {
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -50,32 +51,33 @@ export default function Editor({ content, onChange }: EditorProps) {
   });
 
   const handleAiGenerate = async () => {
-    if (!aiPrompt || !editor) return;
+    if (!aiPrompt || !editor || !apiKey) return;
     setIsAiLoading(true);
-    
+
     // Remember where the cursor is
     const { from } = editor.state.selection;
     const startOfAiCommand = from - 3; // "/ai" is 3 characters long
-    
+
     try {
       const context = editor.getText();
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt, context }),
+        body: JSON.stringify({ prompt: aiPrompt, context, openaiApiKey: apiKey }),
       });
       const data = await res.json();
-      
+      if (!res.ok) throw new Error(data.error || "Failed to generate");
+
       // Delete the "/ai" text and insert the AI response exactly there
       editor.chain().focus()
         .deleteRange({ from: startOfAiCommand, to: from })
         .insertContent(data.text)
         .run();
-        
+
     } catch (error) {
       console.error(error);
     }
-    
+
     setAiPrompt("");
     setShowAiMenu(false);
     setIsAiLoading(false);
@@ -99,12 +101,15 @@ export default function Editor({ content, onChange }: EditorProps) {
           />
           <button
             onClick={handleAiGenerate}
-            disabled={isAiLoading}
+            disabled={isAiLoading || !apiKey}
             className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white text-sm font-medium py-2 rounded-lg transition-colors"
           >
             {isAiLoading ? "Generating..." : "Generate"}
           </button>
-          <button 
+          {!apiKey && (
+            <p className="mt-2 text-xs text-zinc-500">Enter your OpenAI API key in the sidebar to use AI.</p>
+          )}
+          <button
             onClick={() => { setShowAiMenu(false); setAiPrompt(""); }}
             className="mt-2 w-full text-zinc-500 text-sm hover:text-zinc-300"
           >

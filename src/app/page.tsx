@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { FileText, Plus } from "lucide-react";
 import Editor from "@/components/Editor";
+import { useApiKey } from "@/lib/useApiKey";
 
 interface Document {
   id: string;
@@ -12,6 +13,7 @@ interface Document {
 }
 
 export default function Home() {
+  const { apiKey, setApiKey } = useApiKey();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDoc, setActiveDoc] = useState<Document | null>(null);
 
@@ -93,8 +95,8 @@ export default function Home() {
                 key={doc.id}
                 onClick={() => selectDocument(doc)}
                 className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors ${
-                  activeDoc?.id === doc.id 
-                    ? "bg-zinc-800 text-zinc-100" 
+                  activeDoc?.id === doc.id
+                    ? "bg-zinc-800 text-zinc-100"
                     : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
                 }`}
               >
@@ -103,6 +105,18 @@ export default function Home() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1">Your OpenAI API key</label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="sk-..."
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100"
+          />
+          <p className="mt-1 text-xs text-zinc-600">Used only for this session, never stored on our servers.</p>
         </div>
       </aside>
 
@@ -120,6 +134,7 @@ export default function Home() {
             key={activeDoc.id}
             content={activeDoc.content}
             onChange={(content) => setActiveDoc({ ...activeDoc, content })}
+            apiKey={apiKey}
           />
         </main>
       ) : (
