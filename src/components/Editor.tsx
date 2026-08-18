@@ -18,6 +18,7 @@ export default function Editor({ content, onChange, apiKey }: EditorProps) {
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -53,6 +54,7 @@ export default function Editor({ content, onChange, apiKey }: EditorProps) {
   const handleAiGenerate = async () => {
     if (!aiPrompt || !editor || !apiKey) return;
     setIsAiLoading(true);
+    setAiError(null);
 
     // Remember where the cursor is
     const { from } = editor.state.selection;
@@ -74,12 +76,12 @@ export default function Editor({ content, onChange, apiKey }: EditorProps) {
         .insertContent(data.text)
         .run();
 
+      setAiPrompt("");
+      setShowAiMenu(false);
     } catch (error) {
-      console.error(error);
+      setAiError(error instanceof Error ? error.message : "Failed to generate");
     }
 
-    setAiPrompt("");
-    setShowAiMenu(false);
     setIsAiLoading(false);
   };
 
@@ -96,9 +98,12 @@ export default function Editor({ content, onChange, apiKey }: EditorProps) {
             placeholder="e.g., Write a summary of this..."
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100"
             value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
+            onChange={(e) => { setAiPrompt(e.target.value); setAiError(null); }}
             onKeyDown={(e) => e.key === "Enter" && handleAiGenerate()}
           />
+          {aiError && (
+            <p className="mt-2 text-xs text-red-400">{aiError}</p>
+          )}
           <button
             onClick={handleAiGenerate}
             disabled={isAiLoading || !apiKey}
@@ -110,7 +115,7 @@ export default function Editor({ content, onChange, apiKey }: EditorProps) {
             <p className="mt-2 text-xs text-zinc-500">Enter your OpenAI API key in the sidebar to use AI.</p>
           )}
           <button
-            onClick={() => { setShowAiMenu(false); setAiPrompt(""); }}
+            onClick={() => { setShowAiMenu(false); setAiPrompt(""); setAiError(null); }}
             className="mt-2 w-full text-zinc-500 text-sm hover:text-zinc-300"
           >
             Cancel
