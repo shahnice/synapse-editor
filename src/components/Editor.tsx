@@ -11,12 +11,14 @@ import { Sparkles } from "lucide-react";
 interface EditorProps {
   content: string;
   onChange: (content: string) => void;
+  apiKey: string;
 }
 
-export default function Editor({ content, onChange }: EditorProps) {
+export default function Editor({ content, onChange, apiKey }: EditorProps) {
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -50,34 +52,36 @@ export default function Editor({ content, onChange }: EditorProps) {
   });
 
   const handleAiGenerate = async () => {
-    if (!aiPrompt || !editor) return;
+    if (!aiPrompt || !editor || !apiKey) return;
     setIsAiLoading(true);
-    
+    setAiError(null);
+
     // Remember where the cursor is
     const { from } = editor.state.selection;
     const startOfAiCommand = from - 3; // "/ai" is 3 characters long
-    
+
     try {
       const context = editor.getText();
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt, context }),
+        body: JSON.stringify({ prompt: aiPrompt, context, openaiApiKey: apiKey }),
       });
       const data = await res.json();
-      
+      if (!res.ok) throw new Error(data.error || "Failed to generate");
+
       // Delete the "/ai" text and insert the AI response exactly there
       editor.chain().focus()
         .deleteRange({ from: startOfAiCommand, to: from })
         .insertContent(data.text)
         .run();
-        
+
+      setAiPrompt("");
+      setShowAiMenu(false);
     } catch (error) {
-      console.error(error);
+      setAiError(error instanceof Error ? error.message : "Failed to generate");
     }
-    
-    setAiPrompt("");
-    setShowAiMenu(false);
+
     setIsAiLoading(false);
   };
 
@@ -94,18 +98,24 @@ export default function Editor({ content, onChange }: EditorProps) {
             placeholder="e.g., Write a summary of this..."
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100"
             value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
+            onChange={(e) => { setAiPrompt(e.target.value); setAiError(null); }}
             onKeyDown={(e) => e.key === "Enter" && handleAiGenerate()}
           />
+          {aiError && (
+            <p className="mt-2 text-xs text-red-400">{aiError}</p>
+          )}
           <button
             onClick={handleAiGenerate}
-            disabled={isAiLoading}
+            disabled={isAiLoading || !apiKey}
             className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white text-sm font-medium py-2 rounded-lg transition-colors"
           >
             {isAiLoading ? "Generating..." : "Generate"}
           </button>
-          <button 
-            onClick={() => { setShowAiMenu(false); setAiPrompt(""); }}
+          {!apiKey && (
+            <p className="mt-2 text-xs text-zinc-500">Enter your OpenAI API key in the sidebar to use AI.</p>
+          )}
+          <button
+            onClick={() => { setShowAiMenu(false); setAiPrompt(""); setAiError(null); }}
             className="mt-2 w-full text-zinc-500 text-sm hover:text-zinc-300"
           >
             Cancel

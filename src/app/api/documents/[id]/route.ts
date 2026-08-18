@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { DEMO_USER_ID } from "@/lib/demoUser";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { userId } = await auth();
-    if (!userId) return new Response("Unauthorized", { status: 401 });
 
     const document = await prisma.document.findFirst({
-      where: { id, userId },
+      where: { id, userId: DEMO_USER_ID },
     });
     if (!document) return new Response("Not found", { status: 404 });
 
@@ -23,11 +21,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { userId } = await auth();
-    if (!userId) return new Response("Unauthorized", { status: 401 });
 
     const existing = await prisma.document.findFirst({
-      where: { id, userId },
+      where: { id, userId: DEMO_USER_ID },
     });
     if (!existing) return new Response("Not found", { status: 404 });
 
@@ -52,11 +48,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { userId } = await auth();
-    if (!userId) return new Response("Unauthorized", { status: 401 });
 
     const existing = await prisma.document.findFirst({
-      where: { id, userId },
+      where: { id, userId: DEMO_USER_ID },
     });
     if (!existing) return new Response("Not found", { status: 404 });
 
