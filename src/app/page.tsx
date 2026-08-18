@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserButton } from "@clerk/nextjs";
 import { FileText, Plus } from "lucide-react";
 import Editor from "@/components/Editor";
 import { useApiKey } from "@/lib/useApiKey";
@@ -79,7 +78,6 @@ export default function Home() {
             <h1 className="text-xl font-bold text-zinc-50">
               Synapse<span className="text-blue-500">.</span>
             </h1>
-            <UserButton />
           </div>
           
           <button 

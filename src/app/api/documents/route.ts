@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { DEMO_USER_ID } from "@/lib/demoUser";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) return new Response("Unauthorized", { status: 401 });
+    const userId = DEMO_USER_ID;
 
     const body = await req.json();
     const document = await prisma.document.create({
@@ -22,11 +21,8 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) return new Response("Unauthorized", { status: 401 });
-
     const documents = await prisma.document.findMany({
-      where: { userId },
+      where: { userId: DEMO_USER_ID },
       orderBy: { updatedAt: "desc" },
     });
     return NextResponse.json(documents);
